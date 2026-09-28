@@ -1,17 +1,16 @@
 import csv
+import os
 import numpy as np
 import streamlit as st
 import pandas as pd
 
+# Data folder, resolved relative to this file so the app runs from any directory
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data')
+
 # Mapping from month names to file names
 month_to_file = {
-    'April': 'april_2024.csv',
-    'May': 'may_2024.csv',
     'June': 'june_2024.csv',
     'July': 'july_2024.csv',
-    'August': 'august_2024.csv',
-    'September': 'september_2024.csv',
-    'October': 'october_2024.csv'
 }
 
 # Add "All Months" to the dropdown options
@@ -44,17 +43,19 @@ selected_all = st.sidebar.button("Show All Ingredient Popularities")
 def load_data(file_name):
     ingredient_data = {category: counts.copy() for category, counts in ingredient_counts.items()}
     hours = []
-    total_orders = 0  # Initialize total orders
+    seen_orders = set()  # Each CSV row is one item selection; an order spans several rows
 
-    with open(file_name, 'r', encoding='utf-8', errors='ignore') as file:
+    with open(os.path.join(DATA_DIR, file_name), 'r', encoding='utf-8', errors='ignore') as file:
         reader = csv.reader(file)
         header = next(reader, None)
 
         for row in reader:
-            total_orders += 1  # Increment total orders
             try:
                 order_time = row[1].split()[1].split(":")[0]
-                hours.append(order_time)
+                order_id = row[5]
+                if order_id not in seen_orders:  # count each order (and its hour) once
+                    seen_orders.add(order_id)
+                    hours.append(order_time)
     
                 # Count ingredients
                 ingredient = row[2]
@@ -65,7 +66,7 @@ def load_data(file_name):
             except Exception:
                 continue
 
-    return ingredient_data, hours, total_orders
+    return ingredient_data, hours, len(seen_orders)
 
 # Function to load data for all months and aggregate
 def load_all_months_data():
